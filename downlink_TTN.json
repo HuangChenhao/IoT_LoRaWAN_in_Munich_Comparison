@@ -1,0 +1,23 @@
+{
+  "value": [
+    {
+      "@iot.selfLink": "https://gi3.gis.lrg.tum.de/frost/v1.1/Observations(230669806)",
+      "@iot.id": 230669806,
+      "phenomenonTime": "2025-06-08T14:34:04.978203Z",
+      "resultTime": "2025-06-08T14:34:04.959895Z",
+      "result": 33.0,
+      "Datastream@iot.navigationLink": "https://gi3.gis.lrg.tum.de/frost/v1.1/Observations(230669806)/Datastream",
+      "FeatureOfInterest@iot.navigationLink": "https://gi3.gis.lrg.tum.de/frost/v1.1/Observations(230669806)/FeatureOfInterest"
+    },
+    {
+      "@iot.selfLink": "https://gi3.gis.lrg.tum.de/frost/v1.1/Observations(230669809)",
+      "@iot.id": 230669809,
+      "phenomenonTime": "2025-06-08T14:34:04.978203Z",
+      "resultTime": "2025-06-08T14:34:04.959895Z",
+      "result": 31.5,
+      "Datastream@iot.navigationLink": "https://gi3.gis.lrg.tum.de/frost/v1.1/Observations(230669809)/Datastream",
+      "FeatureOfInterest@iot.navigationLink": "https://gi3.gis.lrg.tum.de/frost/v1.1/Observations(230669809)/FeatureOfInterest"
+    }
+  ],
+  "@iot.nextLink": "https://gi3.gis.lrg.tum.de/frost/v1.1/Things(529)/Datastreams(1440)/Observations?$skip=100&$orderby=%40iot.id+asc&$skipFilter=%28%40iot.id+gt+230669809%29"
+}

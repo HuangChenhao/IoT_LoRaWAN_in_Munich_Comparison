@@ -1,0 +1,224 @@
+// Seeeduino LoRaWAN ------------------------------------------------------------
+#define PIN_GROVE_POWER 38
+#define SerialUSB Serial
+#include <SoftwareSerial.h>
+#include <TinyGPS++.h>
+
+
+
+#include <LoRaWan.h>
+#include "Grove_Temperature_And_Humidity_Sensor.h"
+#include "rgb_lcd.h"
+#include <CayenneLPP.h>
+#include <SoftwareSerial.h>
+
+// DHT22 setup
+#define DHTPIN 4
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+
+// LCD setup
+rgb_lcd lcd;
+const int colorR = 0;
+const int colorG = 128;
+const int colorB = 255;
+
+// LoRa keys
+#define DevEUI "0009296F1A9F134F"
+#define AppEUI "70B3D57ED002F952"
+#define AppKey "5AD62F6D46B8AF52B942EEFBDD867863"
+
+// CayenneLPP
+CayenneLPP lpp(51);
+
+// GNSS SoftSerial
+SoftwareSerial SoftSerial(2, 3);  // RX=D2 (connect GNSS TX), TX=D3
+TinyGPSPlus gps; 
+
+// buffer for GNSS
+unsigned char gnss_buffer[64];
+int gnss_count = 0;
+
+// buffer for LoRa
+char buffer[256];
+
+void clearGnssBufferArray() {
+  for (int i = 0; i < gnss_count; i++) {
+    gnss_buffer[i] = NULL;
+  }
+}
+
+void setup() {
+  // LCD init
+  lcd.begin(16, 2);
+  lcd.setRGB(colorR, colorG, colorB);
+  lcd.setCursor(0, 0);
+  lcd.print("LCD Start OK");
+  delay(2000);
+  lcd.clear();
+
+  // DHT init
+  dht.begin();
+
+  // GNSS SoftSerial
+  SoftSerial.begin(9600);
+  Serial.begin(9600);
+
+  // Grove power
+  pinMode(PIN_GROVE_POWER, OUTPUT);
+  digitalWrite(PIN_GROVE_POWER, 1);
+
+  // LoRa init
+  lora.init();
+  memset(buffer, 0, 256);
+  lora.getVersion(buffer, 256, 1);
+  Serial.print(buffer);
+  memset(buffer, 0, 256);
+  lora.getId(buffer, 256, 1);
+  Serial.print(buffer);
+
+  lora.setId(NULL, DevEUI, AppEUI);
+  lora.setKey(NULL, NULL, AppKey);
+
+  lora.setDeciveMode(LWOTAA);
+  lora.setDataRate(DR0, EU868);
+  lora.setAdaptiveDataRate(true);
+  lora.setPower(14);
+  lora.setPort(33);
+
+  lora.setDutyCycle(false);
+  lora.setJoinDutyCycle(false);
+
+  // Channels
+  lora.setChannel(0, 868.1);
+  lora.setChannel(1, 868.3);
+  lora.setChannel(2, 868.5);
+  lora.setChannel(3, 867.1);
+  lora.setChannel(4, 867.3);
+  lora.setChannel(5, 867.5);
+  lora.setChannel(6, 867.7);
+  lora.setChannel(7, 867.9);
+
+  // LoRa Join
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("+JOIN: Start");
+  delay(500);
+
+  unsigned int nretries = 0;
+  while (!lora.setOTAAJoin(JOIN, 20)) {
+    nretries++;
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("+JOIN: Fail");
+    lcd.setCursor(0, 1);
+    lcd.print("Retry: ");
+    lcd.print(nretries);
+    Serial.println((String) "Join failed, retry: " + nretries);
+    delay(2000);
+  }
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("+JOIN: Done");
+  Serial.println("Join successful!");
+  delay(1000);
+}
+
+unsigned int nloops = 0;
+void loop() {
+  nloops++;
+  Serial.println((String)"Loop " + nloops + "...");
+
+  lpp.reset();
+
+  // Read temp & humi
+  float temp_hum_val[2] = {0};
+  float temperature = 0;
+  float humidity = 0;
+
+  if (!dht.readTempAndHumidity(temp_hum_val)) {
+    humidity = temp_hum_val[0];
+    temperature = temp_hum_val[1];
+
+    lpp.addTemperature(1, temperature);
+    lpp.addRelativeHumidity(2, humidity);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("T:");
+    lcd.print(temperature, 1);
+    lcd.print("C H:");
+    lcd.print(humidity, 1);
+    lcd.print("%");
+
+    Serial.print("Temp: ");
+    Serial.print(temperature);
+    Serial.print(" C, Humi: ");
+    Serial.print(humidity);
+    Serial.println(" %");
+
+  } else {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("DHT read fail");
+    lpp.addTemperature(1, -999);
+    Serial.println("Failed to read from DHT sensor.");
+  }
+
+  // LoRa send
+  bool result = lora.transferPacket(lpp.getBuffer(), lpp.getSize(), 5);
+
+  if (result) {
+    short length, rssi;
+    char rx[256];
+    length = lora.receivePacket(rx, 256, &rssi);
+    if (length) {
+      Serial.print("Length: "); Serial.println(length);
+      Serial.print("RSSI: "); Serial.println(rssi);
+      Serial.print("Data: ");
+      for (unsigned char i = 0; i < length; i++) {
+        Serial.print("0x");
+        Serial.print(rx[i], HEX);
+        Serial.print(" ");
+      }
+      int rx_data_asInteger = atoi(rx);
+      Serial.println();
+      Serial.println("Received data: " + String(rx_data_asInteger));
+    }
+      lcd.setCursor(0, 1);
+      lcd.print("LoRa Sent OK");
+  }else {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("LoRa Send Fail");
+  }
+
+  // GNSS SoftSerial bridge
+ while (SoftSerial.available()) {
+    gps.encode(SoftSerial.read());
+  }
+
+  if (gps.location.isUpdated()) {
+    float lat = gps.location.lat();
+    float lon = gps.location.lng();
+    float alt = gps.altitude.meters();
+
+    String locStr = String("Location: ") + String(lat, 6) + ", " + String(lon, 6) + ", " + String(alt, 2);
+    Serial.println(locStr);
+
+    lpp.addGPS(3, lat, lon, alt);
+
+    lcd.setCursor(0, 1);
+    // lcd.print("GPS OK       "); 
+  }
+
+
+    if (Serial.available()) {
+      SoftSerial.write(Serial.read());
+    }
+
+    Serial.println((String)"Loop " + nloops + "...done!\n");
+    delay(20000);
+  }
+
