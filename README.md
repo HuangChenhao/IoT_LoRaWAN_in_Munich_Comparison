@@ -36,7 +36,7 @@ Low Power Wide Area Networks (LPWANs) are a class of wireless communication netw
 
 Typical representatives include LoRaWAN, NB-IoT, and Sigfox.
 
-### LoRaWANs in Munich: A Parallel Pattern
+## LoRaWANs in Munich: A Parallel Pattern
 
 ​With the development of smart cities, low-power wide-area networks (LPWANs) have become the key infrastructure for city-level IoT deployment. Among them, LoRaWAN, as a representative technology, plays an increasingly important role in urban monitoring, resource management and data collection due to its advantages of long range, low power consumption and flexible deployment.
 
